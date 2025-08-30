@@ -1,142 +1,109 @@
-# flask-recipe-app
+Recipe Generator Application Documentation
 
-MAB Media – Recipe Generator: Technical Documentation
+This documentation provides a comprehensive guide to the Recipe Generator, a web application that leverages a Python backend and a JavaScript frontend to create, store, and manage recipes.
 
-1. Overview
+Application Overview
 
-This document provides a detailed technical overview of the "MAB Media – Recipe Generator" Flask application. The application is a simple, single-page web service that allows users to generate and view "fake" recipes based on a user-submitted dish name. All generated recipes are stored in a local SQLite database and displayed on the main page. 2. Key Features
+The application is built on a simple client-server architecture.
 
-    Recipe Generation: Creates a templated recipe based on the user's input.
+    The backend, a Flask web server, is responsible for handling all core logic, including API requests, communication with the Gemini API to generate recipes, and database operations with Firebase Firestore.
 
-    Image Integration: Fetches a placeholder image from loremflickr.com based on the dish name.
+    The frontend, a single HTML file, provides the user interface. It uses JavaScript to interact with the backend API to generate, display, and delete recipes.
 
-    Persistent Storage: Uses an SQLite database to store generated recipes for a historical log.
+Prerequisites
 
-    Dynamic UI: Displays the form for recipe generation and a list of previously created recipes with their images.
+To run this application, you will need to install the following software and configure a Google Cloud project.
 
-    Single-File Application: The entire application, including the server logic, database handlers, and HTML templates, is contained within a single Python file.
+    Python 3.x: Ensure you have a recent version of Python installed.
 
-3. Technology Stack
+    Pip: Python's package installer, which is typically included with Python.
 
-   Python: The core programming language.
+    Google Cloud Project: A project with Firebase enabled, and the Cloud Firestore API activated. You must have a service account JSON file from this project.
 
-   Flask: A lightweight web framework used to handle web requests and routing.
+Project Structure
 
-   SQLite: A file-based database engine used for local data persistence.
+The application should be organized in a specific directory structure for Flask to function correctly.
 
-   Jinja2: The templating engine used by Flask to render dynamic HTML.
+.
+├── app.py
+└── templates
+└── index.html
 
-   HTML/CSS: Used for the application's user interface and styling.
+    app.py: This is the main Python file containing the Flask web server and backend logic.
 
-4. File Structure & Components
+    templates/: This is a required directory where Flask automatically looks for HTML files.
 
-The entire application is self-contained in a single app.py file (or a file with a similar name). It is logically divided into several key sections:
-4.1. Configuration
+    index.html: The single-file frontend for the application.
 
-This section defines global constants for the application, such as the title (APP_TITLE) and the name of the database file (DATABASE).
-4.2. Database Helpers
+Backend (app.py) Documentation
 
-This section manages the SQLite database connection.
+The app.py file is the heart of the application, managing all server-side operations.
 
-    get_db(): Initializes and returns a database connection. It uses Flask's g object to store the connection, ensuring that only one connection is created per request.
+Python Dependencies
 
-    close_db(exception): A teardown function registered with Flask. It automatically closes the database connection at the end of each request, releasing resources.
+First, you must install all the required Python libraries. Open your terminal and run the following command:
+Bash
 
-    init_db(): Creates the recipes table if it does not already exist. This function is called on the first page load to ensure the database schema is ready.
+pip install Flask Flask-Cors requests firebase-admin
 
-4.3. Core Logic
+Key Code Sections
 
-This section contains the application's main functional components.
+    Configuration: The firebase_config dictionary on lines 17-27 is crucial for authentication. It contains placeholder values that must be replaced with the credentials from your service account JSON file. The private_key is particularly important, as it contains escaped newlines that the code automatically handles.
 
-    image_for_query(query: str) -> tuple[str, str]: A utility function that generates a URL for a placeholder image from the loremflickr.com service. It replaces spaces in the query with + to make it URL-safe.
+    Gemini API Integration: The generate_recipe function on line 87 makes a POST request to the Gemini API. It uses the requests library to send the user's prompt and a JSON schema, ensuring the generated recipe is in a structured format.
 
-    generate_recipe(dish: str) -> str: A simple function that generates a string of "fake" recipe ingredients and instructions based on the provided dish name.
+    API Endpoints: The app exposes the following RESTful API endpoints:
 
-4.4. HTML Template
+        GET /: Serves the index.html file to the user's browser.
 
-The TEMPLATE string is a multi-line string containing all the HTML and CSS for the application's user interface. It combines both the base structure (head, body, styling) and the dynamic content (the form and the recipe history loop) into a single, cohesive template. This allows all template variables ({{ title }}) and control structures ({% for r in recipes %}) to be processed in a single pass by the Jinja2 engine.
-4.5. Routes
+        POST /recipes: Accepts a JSON payload with a prompt and user_id. It calls the Gemini API to generate a new recipe, saves it to Firestore, and returns the newly created recipe as a JSON object.
 
-This is the core of the Flask application, defining how web requests are handled.
+        GET /recipes: Accepts a user_id as a query parameter. It retrieves all recipes for that user from Firestore and returns them as a JSON array.
 
-    @app.route("/", methods=["GET", "POST"]): This decorator registers the index() function to handle requests to the root URL (/). It is configured to accept both GET and POST methods.
+        DELETE /recipes/<recipe_id>: Accepts a recipe_id in the URL and a user_id as a query parameter. It deletes the corresponding recipe document from Firestore.
 
-    GET Request: When the page is loaded, the application fetches all recipes from the database in reverse chronological order (ORDER BY id DESC) and passes them to the template for rendering.
+    Firestore Integration: The app connects to your Firebase project using the firebase-admin SDK. The recipe data is stored in a collection path that is dynamically built using the app_id and user_id: /artifacts/{app_id}/users/{user_id}/recipes. This structure ensures the data is private to each user and adheres to Firebase's security best practices.
 
-    POST Request: When the user submits the form, the application extracts the dish name, generates a recipe and an image URL, inserts a new record into the recipes table, and then redirects back to the main page. This redirect ensures that a page refresh won't resubmit the form.
+Frontend (index.html) Documentation
 
-4.6. Run App
+The index.html file provides the entire user interface and client-side logic in a single file for convenience.
 
-This block of code is a standard Python entry point. The if **name** == "**main**": check ensures that the development server only runs when the script is executed directly. It binds the server to all network interfaces (host="0.0.0.0") and runs in debug mode, which automatically restarts the server when code changes. 5. Database Schema
+Structure and Styling
 
-The SQLite database contains a single table named recipes.
+The HTML file is structured to be fully responsive using Tailwind CSS.
 
-Column
+    A main container holds the application's header, form, and recipe display area.
 
-Data Type
+    The #recipe-form element captures user input for generating new recipes.
 
-Constraints
+    The #recipes-container is a grid where the JavaScript dynamically injects recipe cards.
 
-Description
+    The styling is handled entirely by Tailwind's utility classes and a small, custom style block for the card shadow and font.
 
-id
+JavaScript Logic
 
-INTEGER
+The JavaScript section handles all client-side interactions.
 
-PRIMARY KEY, AUTOINCREMENT
+    fetchRecipes(): This function is called when the page loads. It sends a GET request to the backend to retrieve any previously saved recipes for the user_001 placeholder ID and renders them on the page.
 
-A unique ID for each recipe entry.
+    renderRecipe(): This utility function takes a recipe JSON object and creates a new HTML card element for it. This keeps the recipe display area up to date.
 
-query
+    Form Submission: When the user submits the form, the event listener prevents the default page reload, updates the UI to show a "Generating..." message, and sends the user's prompt to the backend's POST /recipes endpoint.
 
-TEXT
+    deleteRecipe(): This function is attached to the delete button on each recipe card. It sends a DELETE request to the backend with the recipe's ID, which removes the recipe from Firestore and the user interface.
 
-NOT NULL
+    Error Handling: Both the fetchRecipes() and form submission handlers include try...catch blocks to capture and display errors from the backend in the #status-message area.
 
-The user's original search query (the dish name).
+How to Run the Application
 
-recipe
+With all the components and dependencies in place, you can now run the application.
 
-TEXT
+    Open your terminal and navigate to the directory containing your app.py and templates folder.
 
-NOT NULL
+    Run the Flask server with the following command:
 
-The full generated recipe text.
+Bash
 
-image_url
+python app.py
 
-TEXT
-
-NOT NULL
-
-The URL for the placeholder image.
-
-created_at
-
-TEXT
-
-NOT NULL
-
-The timestamp when the recipe was created. 6. How to Run the Application
-
-    Prerequisites: Ensure you have Python and Flask installed. If not, install Flask using pip install Flask.
-
-    Save the file: Save the code as app.py.
-
-    Run from the command line: Navigate to the directory where you saved app.py in your terminal and execute:
-
-    python app.py
-
-    Access the app: Open your web browser and navigate to http://127.0.0.1:5000.
-
-The application will automatically create the recipes.db file and the recipes table upon the first run. 7. Potential Improvements
-
-    Real AI Integration: Replace the generate_recipe() function with a call to a real large language model (LLM) API to generate more creative and varied recipes.
-
-    User Authentication: Implement user login and registration to allow users to save their own private recipe history.
-
-    More Robust UI: Use a CSS framework like Tailwind CSS or Bootstrap for a more polished, responsive design instead of inline styles.
-
-    Error Handling: Add more robust error handling for form submissions and database operations.
-
-    Pagination: Implement pagination for the recipe history list to improve performance if the number of stored recipes grows large.
+    The console will show that the server is running on http://127.0.0.1:5000. Open this URL in your web browser to access the Recipe Generator application.
