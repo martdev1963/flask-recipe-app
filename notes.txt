@@ -1,0 +1,69 @@
+Build a fully functional Flask app that produces cooking recipes with associated photos 
+of the finished dish. This app should also utilize an sqlite3 database. 
+It should accept user input for the desired recipe and produce the recipe accordingly.
+
+Flask Recipe Generator – Complete App
+
+Below is a ready‑to‑run Flask project that:
+
+Accepts user input (the recipe you want)
+
+Generates a complete recipe (title, ingredients, steps, timing, servings, tips)
+
+Stores recipes in an sqlite3 database
+
+Shows an associated photo for the finished dish (via Unsplash Source or Unsplash API key if provided)
+
+Exposes a tiny JSON API for your recipes
+
+Got you, Mart Bat! I built you a compact, one-file Flask app that:
+
+takes a user prompt (“spicy tofu stir-fry”, “creamy chicken pasta”),
+
+generates a complete recipe (ingredients, steps, timing, tips),
+
+saves it to SQLite,
+
+and shows a matching dish photo (works without keys; gets fancier if you add an Unsplash API key).
+
+I dropped the full project (app.py + requirements + run steps) into the canvas to your right. It’s ready to copy/run.
+
+Quickstart:
+
+pip install -r requirements.txt
+
+python app.py
+
+Hit http://127.0.0.1:5000, type your craving, boom—recipe with photo.
+
+Forward-looking tweaks you can add later:
+
+Swap the rule-based generator for your favorite LLM inside generate_recipe.
+
+Store downloaded images in /static for offline repeatability.
+
+Add user auth + “favorites” table, or a tag system for cuisines.
+
+If you want this split into real Jinja templates/static files or dockerized, say the word and I’ll refactor it.
+
+
+SHELL_OUTPUT:
+
+Martin@DESKTOP-HTLQ9GM /cygdrive/c/Users/Martin/Documents/Coding/flask-recipe-app
+$ python app.py
+ * Serving Flask app 'app'
+ * Debug mode: on
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.178:5000
+Press CTRL+C to quit
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 596-014-203
+127.0.0.1 - - [30/Aug/2025 04:39:02] "POST / HTTP/1.1" 302 -
+127.0.0.1 - - [30/Aug/2025 04:39:02] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [30/Aug/2025 04:39:21] "POST / HTTP/1.1" 302 -
+127.0.0.1 - - [30/Aug/2025 04:39:21] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [30/Aug/2025 04:39:32] "POST / HTTP/1.1" 302 -
+127.0.0.1 - - [30/Aug/2025 04:39:32] "GET / HTTP/1.1" 200 -
