@@ -1,183 +1,147 @@
-import os
-import sqlite3
-from flask import Flask, g, render_template_string, request, redirect, url_for
-from datetime import datetime, timezone
+import requests
+import json
+from flask import Flask, render_template, request, jsonify
+from flask_cors import CORS
+import firebase_admin
+from firebase_admin import firestore, credentials
 
-# -------------------------------------------------------------------
-# Config
-# -------------------------------------------------------------------
-APP_TITLE = "MAB Media – Recipe Generator"
-DATABASE = "recipes.db"
+# Using a free service that does not require an API key for immediate use.
+# This can be replaced with the Unsplash API key later.
+LOREM_PICSUM_URL = "https://picsum.photos/600/400"
+
+# Use the environment variables from the canvas, with fallbacks for local testing.
+if '__firebase_config' in locals() or '__firebase_config' in globals():
+    firebase_config = json.loads(__firebase_config)
+else:
+    # A placeholder configuration for local development.
+    # IMPORTANT: Replace "YOUR_PRIVATE_KEY_GOES_HERE" with your actual private key from your Firebase service account JSON file.
+    firebase_config = {
+}
+
+
+if '__app_id' in locals() or '__app_id' in globals():
+    app_id = __app_id
+else:
+    app_id = "default-app-id"
+
+# The private key must be a valid PEM formatted string. A service account JSON file
+# stores it with escaped newlines ('\\n'). We need to replace these to make it a
+# valid key for the `credentials.Certificate` function.
+private_key_string = firebase_config.get('private_key')
+if private_key_string == ""
+    raise ValueError("You must replace the placeholder private key with your actual private key from your Firebase service account JSON file.")
+
+if private_key_string:
+    firebase_config['private_key'] = private_key_string.replace('\\n', '\n')
+
+cred = credentials.Certificate(firebase_config)
+firebase_admin.initialize_app(cred)
+db = firestore.client()
 
 app = Flask(__name__)
+CORS(app)
 
-# -------------------------------------------------------------------
-# Database helpers
-# -------------------------------------------------------------------
-def get_db():
-    if "_db" not in g:
-        g._db = sqlite3.connect(DATABASE)
-        g._db.row_factory = sqlite3.Row
-    return g._db
+# The collection path must be structured as /artifacts/{appId}/users/{userId}/{collectionName}
+# to enforce the correct security rules and ensure data is private to each user.
+# The user_id is passed from the front end.
+RECIPES_COLLECTION_PATH = f'artifacts/{app_id}/users/{{user_id}}/recipes'
+RECIPES_COLLECTION = db.collection(RECIPES_COLLECTION_PATH)
 
-@app.teardown_appcontext
-def close_db(exception):
-    db = g.pop("_db", None)
-    if db is not None:
-        db.close()
 
-def init_db():
-    db = get_db()
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS recipes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            query TEXT NOT NULL,
-            recipe TEXT NOT NULL,
-            image_url TEXT NOT NULL,
-            created_at TEXT NOT NULL
-        )
-    """)
-    db.commit()
+def get_image_url(query: str) -> str:
+    """Gets a random image URL using the Lorem Picsum service."""
+    # The 'query' parameter isn't used for Lorem Picsum as it provides random images,
+    # but the function signature remains the same for easy swapping later.
+    return LOREM_PICSUM_URL + "?random=1"
 
-# -------------------------------------------------------------------
-# Image fetcher (loremflickr)
-# -------------------------------------------------------------------
-def image_for_query(query: str) -> tuple[str, str]:
-    query_safe = query.replace(" ", "+")
-    img_url = f"https://loremflickr.com/640/480/{query_safe}"
-    return img_url, query
 
-# -------------------------------------------------------------------
-# Fake recipe generator
-# -------------------------------------------------------------------
-def generate_recipe(dish: str) -> str:
-    return f"""
-Ingredients:
-- 2 cups {dish}
-- 1 tsp salt
-- 1 tbsp olive oil
-- Herbs to taste
-
-Instructions:
-1. Preheat oven to 180°C.
-2. Mix {dish} with salt and herbs.
-3. Drizzle olive oil.
-4. Bake for 20 minutes.
-5. Serve hot and enjoy!
-"""
-
-# -------------------------------------------------------------------
-# Combined HTML Template
-# -------------------------------------------------------------------
-# Combine the base and content templates into one for single-pass rendering.
-TEMPLATE = """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>{{ title }}</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 40px;
-            background: #F5B027;
-        }
-        h1, h2 {
-            text-align: center;
-        }
-        form {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        input[type=text] {
-            width: 300px;
-            padding: 10px;
-            margin-right: 10px;
-        }
-        input[type=submit] {
-            padding: 10px 20px;
-        }
-        .recipe {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px auto;
-            max-width: 600px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        pre {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-        img {
-            max-width: 100%;
-            border-radius: 8px;
-            margin-top: 10px;
-        }
-        .footer {
-            text-align: center;
-            margin-top: 40px;
-            font-size: 14px;
-            color: #666;
-        }
-    </style>
-</head>
-<body>
-    <h1>{{ title }}</h1>
-    <form method="post">
-        <input type="text" name="dish" placeholder="Enter a dish..." required>
-        <input type="submit" value="Generate Recipe">
-    </form>
-
-    {% for r in recipes %}
-    <div class="recipe">
-        <h2>{{ r['query'] }}</h2>
-        <pre>{{ r['recipe'] }}</pre>
-        {% if r['image_url'] %}
-        <img src="{{ r['image_url'] }}" alt="{{ r['query'] }}">
-        {% endif %}
-        <p><small>Created at: {{ r['created_at'] }}</small></p>
-    </div>
-    {% endfor %}
-
-    <div class="footer">
-        <p>Powered by {{ title }}</p>
-    </div>
-</body>
-</html>
-"""
-
-# -------------------------------------------------------------------
-# Routes
-# -------------------------------------------------------------------
-@app.route("/", methods=["GET", "POST"])
+@app.route('/')
 def index():
-    init_db()
-    db = get_db()
+    return render_template('index.html')
 
-    if request.method == "POST":
-        dish = request.form["dish"].strip()
-        if dish:
-            recipe = generate_recipe(dish)
-            image_url, _ = image_for_query(dish)
-            db.execute(
-                "INSERT INTO recipes (query, recipe, image_url, created_at) VALUES (?, ?, ?, ?)",
-                (dish, recipe, image_url, datetime.now(timezone.utc).isoformat())
-            )
-            db.commit()
-            return redirect(url_for("index"))
 
-    # fetch latest recipes
-    cur = db.execute("SELECT * FROM recipes ORDER BY id DESC")
-    recipes = cur.fetchall()
+@app.route('/recipes', methods=['POST'])
+def generate_recipe():
+    data = request.json
+    prompt = data.get('prompt')
+    user_id = data.get('user_id')
+    
+    if not prompt or not user_id:
+        return jsonify({'error': 'Prompt and user ID are required'}), 400
 
-    return render_template_string(
-        TEMPLATE,
-        title=APP_TITLE,
-        recipes=recipes
-    )
+    # Call the recipe generation LLM
+    gemini_api_key = "" # The canvas will automatically provide this key.
+    llm_url = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key={gemini_api_key}'
+    
+    llm_payload = {
+        'contents': [
+            {
+                'role': 'user',
+                'parts': [
+                    {'text': f"Generate a recipe for {prompt}. The recipe should be in JSON format with a 'title', a 'description', a 'prep_time', and a list of 'ingredients'."}
+                ]
+            }
+        ],
+        'generationConfig': {
+            'responseMimeType': 'application/json'
+        }
+    }
 
-# -------------------------------------------------------------------
-# Run app
-# -------------------------------------------------------------------
-if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    try:
+        llm_response = requests.post(llm_url, json=llm_payload)
+        llm_response.raise_for_status()
+        recipe_data = llm_response.json()['candidates'][0]['content']['parts'][0]['text']
+        recipe = json.loads(recipe_data)
+
+        # Get an image for the recipe
+        image_url = get_image_url(recipe['title'])
+        recipe['image_url'] = image_url
+
+        # Save the new recipe to Firestore
+        doc_ref = db.collection(RECIPES_COLLECTION_PATH.format(user_id=user_id)).document()
+        doc_ref.set(recipe)
+        
+        recipe['id'] = doc_ref.id
+        return jsonify(recipe)
+
+    except requests.exceptions.RequestException as e:
+        print(f"API request failed: {e}")
+        return jsonify({'error': 'Failed to generate recipe from API'}), 500
+    except (json.JSONDecodeError, KeyError) as e:
+        print(f"Invalid API response: {e}")
+        return jsonify({'error': 'Invalid response from recipe generator'}), 500
+
+
+@app.route('/recipes', methods=['GET'])
+def get_all_recipes():
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'User ID is required'}), 400
+        
+    try:
+        recipes_ref = db.collection(RECIPES_COLLECTION_PATH.format(user_id=user_id))
+        docs = recipes_ref.stream()
+        recipes = [{'id': doc.id, **doc.to_dict()} for doc in docs]
+        return jsonify(recipes)
+    except Exception as e:
+        print(f"Error fetching recipes: {e}")
+        return jsonify({'error': 'Failed to fetch recipes'}), 500
+
+
+@app.route('/recipes/<recipe_id>', methods=['DELETE'])
+def delete_recipe(recipe_id):
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'User ID is required'}), 400
+
+    try:
+        doc_ref = db.collection(RECIPES_COLLECTION_PATH.format(user_id=user_id)).document(recipe_id)
+        doc_ref.delete()
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        print(f"Error deleting recipe: {e}")
+        return jsonify({'error': 'Failed to delete recipe'}), 500
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
