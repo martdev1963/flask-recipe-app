@@ -79,7 +79,7 @@ TEMPLATE = """
         body {
             font-family: Arial, sans-serif;
             margin: 40px;
-            background: #f8f8f8;
+            background: #F5B027;
         }
         h1, h2 {
             text-align: center;
