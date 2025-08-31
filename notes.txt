@@ -84,7 +84,7 @@ Press CTRL+C to quit
 Image generation failed: 400 Client Error: 
 Bad Request 
 for url: 
-https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=AIzaSyD8Zu3UFyoSpZe387dXNuI_jdzOnvgx570
+https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=
 API Response Body: {
   "error": {
     "code": 400,
